@@ -1,1 +1,1 @@
-from .states import Form
+from .states import Registration

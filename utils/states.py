@@ -1,5 +1,5 @@
 from aiogram.fsm.state import StatesGroup, State
 
 
-class Form(StatesGroup):
-    foo = State()
+class Registration(StatesGroup):
+    english_level = State()
