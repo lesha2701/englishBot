@@ -1,0 +1,97 @@
+[
+	{
+		"word_id": 1,
+		"english": "apple",
+		"translation": "яблоко",
+		"transcription": "ˈæp.əl",
+		"level": "A1",
+		"topic": "food",
+		"examples": [
+			{
+				"english": "I eat an apple every morning",
+				"translation": "Я ем яблоко каждое утро"
+			},
+			{
+				"english": "This apple pie is delicious",
+				"translation": "Этот яблочный пирог восхитителен"
+			}
+		],
+		"synonyms": ["fruit", "pomaceous"]
+	},
+	{
+		"word_id": 2,
+		"english": "run",
+		"translation": "бегать",
+		"transcription": "rʌn",
+		"level": "A1",
+		"topic": "actions",
+		"examples": [
+			{
+				"english": "I run in the park every day",
+				"translation": "Я бегаю в парке каждый день"
+			},
+			{
+				"english": "He runs faster than me",
+				"translation": "Он бегает быстрее меня"
+			}
+		],
+		"synonyms": ["jog", "sprint"]
+	},
+	{
+		"word_id": 3,
+		"english": "beautiful",
+		"translation": "красивый",
+		"transcription": "ˈbjuː.tɪ.fəl",
+		"level": "A2",
+		"topic": "adjectives",
+		"examples": [
+			{
+				"english": "She has a beautiful voice",
+				"translation": "У нее красивый голос"
+			},
+			{
+				"english": "What a beautiful sunset!",
+				"translation": "Какой красивый закат!"
+			}
+		],
+		"synonyms": ["pretty", "attractive"]
+	},
+	{
+		"word_id": 4,
+		"english": "house",
+		"translation": "дом",
+		"transcription": "haʊs",
+		"level": "A1",
+		"topic": "home",
+		"examples": [
+			{
+				"english": "We bought a new house",
+				"translation": "Мы купили новый дом"
+			},
+			{
+				"english": "The house has three bedrooms",
+				"translation": "В доме три спальни"
+			}
+		],
+		"synonyms": ["home", "residence"]
+	},
+	{
+		"word_id": 5,
+		"english": "book",
+		"translation": "книга",
+		"transcription": "bʊk",
+		"level": "A1",
+		"topic": "objects",
+		"examples": [
+			{
+				"english": "I'm reading an interesting book",
+				"translation": "Я читаю интересную книгу"
+			},
+			{
+				"english": "This book changed my life",
+				"translation": "Эта книга изменила мою жизнь"
+			}
+		],
+		"synonyms": ["novel", "tome"]
+	}
+]
