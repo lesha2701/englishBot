@@ -9,8 +9,11 @@ import random
 from utils.states import LessonStates
 from utils.api import get_words_for_lessons
 
+from typing import Dict, List
+
 router = Router()
 
+WordDict = Dict[str, str | int | List[Dict[str, str]]]
 
 # Обработчик команды /new_lesson
 @router.message(Command("new_lesson"))
@@ -30,15 +33,16 @@ async def start_new_lesson(message: Message, state: FSMContext):
         
     words = get_words_for_lessons(countWords=5)
     
-    repetition = []
-    for word in words:
-        repetition.append({
-            "word": word['english'],
-            "translation": word['translation'],
-            "rus_eng_count": 0,
-            "eng_rus_count": 0,
-            "total_count": 0
-        })
+    repetition = [{
+        "word": word['english'],
+        "translation": word['translation'],
+        "transcription": word.get('transcription', ''),
+        "examples": word.get('examples', []),
+        "synonyms": word.get('synonyms', []),
+        "rus_eng_count": 0,
+        "eng_rus_count": 0,
+        "total_count": 0
+    } for word in words]
 
     await state.update_data(
         words=words,
@@ -46,29 +50,27 @@ async def start_new_lesson(message: Message, state: FSMContext):
         count_words=5,
         repetition=repetition,
         current_word = {},
-        mode = ""
+        mode = "",
+        errors=0
     )
     await state.set_state(LessonStates.PREVIEW)
     
     words_preview = "\n".join(f"• <b>{word['english']}</b> - {word['translation']}" for word in words)
     
     await message.answer(
-        f"🌿 <b>Урок №5!</b> 🌿\n"
-        f"🌿 <b>Тема блока: Еда</b> 🌿\n\n"
-        f"✨ <u>На этом уроке вы изучите {len(words)} новых слов</u> ✨\n\n"
-        f"📖 <b>Список новых слов на этот урок:</b>\n"
+        f"🌿 <b>Урок №5! Тема: Еда</b> 🌿\n\n"
+        f"✨ Изучите {len(words)} новых слов:\n"
         f"{words_preview}\n\n"
-        f"🎯 <b>Структура урока:</b>\n"
-        f"▫️ <i>Знакомство</i> — детальный разбор каждого слова\n"
-        f"▫️ <i>Практика</i> — тренировка перевода\n"
-        f"▫️ <i>Поддержка</i> — подсказки при затруднениях\n\n"
-        f"⏳ <i>Среднее время: {len(words)} минуты</i>\n"
-        f"💎 <i>Награда: {len(words)*10} монет</i>\n\n"
-        f"<b>Совет:</b> Попробуйте мысленно составить предложения с этими словами перед началом!",
+        f"🎯 Формат урока:\n"
+        f"▫️ Знакомство с каждым словом\n"
+        f"▫️ Практика перевода\n"
+        f"▫️ Подсказки при затруднениях\n\n"
+        f"⏱ Время: ~{len(words)} мин | 🏆 Награда: {len(words)*10} монет\n\n"
+        f"<i>Совет: Попробуйте составить предложения с этими словами!</i>",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="🚀 Начать урок →", callback_data="start_lesson")],
-                [InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_lesson")]
+                [InlineKeyboardButton(text="🚀 Начать", callback_data="start_lesson")],
+                [InlineKeyboardButton(text="⏸ Позже", callback_data="cancel_lesson")]
             ]
         ),
         parse_mode="HTML"
@@ -143,8 +145,7 @@ async def check_translation(message: Message, state: FSMContext):
                 f"▫️ 2 раза с русского на английский\n"
                 f"▫️ 1 раз с английского на русский\n\n"
                 f"🧠 <i>Такой подход поможет лучше запомнить слова</i>\n\n"
-                f"<b>Совет:</b> Попробуйте сначала вспомнить слово мысленно, прежде чем писать ответ!\n\n"
-                f"⏳ <i>Примерное время: {len(data['words'])*1.5} минут</i>\n\n"
+                f"⏱ ~{len(data['words'])*1.5} мин\n\n"
                 f"<b>Готовы начать повторение?</b>",
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
@@ -166,6 +167,8 @@ async def check_translation(message: Message, state: FSMContext):
                 f"Синоним: {random.choice(word.get('synonyms', ['нет синонимов']))}",
                 f"Транскрипция: {word['transcription']}"
             ])
+        countErrors = data["errors"] + 1
+        await state.update_data(errors=countErrors)
         await message.answer(f"❌ Почти! Подсказка: {hint}")
 
 @router.callback_query(F.data == "start_repetition", LessonStates.REPETITION)
@@ -228,9 +231,12 @@ async def check_repetition(message: Message, state: FSMContext):
         await message.answer("⚠️ Ошибка: слово не найдено в списке повторения")
         return
     
+    is_correct = (data["mode"] == 'rus_eng' and user_answer == current_word['word'].lower()) or \
+                 (data["mode"] == 'eng_rus' and user_answer == current_word['translation'].lower())
+
     # Проверяем ответ и обновляем счетчики
-    if user_answer == current_word['translation'].lower() or user_answer == current_word['word'].lower():
-        await message.answer("✅ Верно! Отличная работа!")
+    if is_correct:
+        await message.answer("✅ <b>Верно!</b> Так держать!", parse_mode="HTML")
         
         if data["mode"] == 'rus_eng':
             repetition[word_index]['rus_eng_count'] += 1
@@ -248,70 +254,52 @@ async def check_repetition(message: Message, state: FSMContext):
         await repetition_translation(message, state)
 
     else:
-        hint = random.choice([
-                f"Первая буква: <b>{current_word['translation'][0].upper()}</b>",
-                f"Количество букв: {len(current_word['translation'])}",
-                f"Пример: {random.choice(current_word['examples'])}",
-                f"Синоним: {random.choice(current_word.get('synonyms', ['нет синонимов']))}",
-                f"Транскрипция: {current_word['transcription']}"
-            ])
-        await message.answer(f"❌ Почти! Подсказка: {hint}")
+        hint = await generate_hint(current_word, is_english_to_russian=data["mode"] == 'eng_rus')
+        countErrors = data["errors"] + 1
+        await state.update_data(errors=countErrors)
+        await message.answer(f"❌ Неверно. {hint}", parse_mode="HTML")
+
+async def generate_hint(word: WordDict, is_english_to_russian: bool) -> str:
+    """Генерация подсказки в зависимости от направления перевода"""
+    hints = []
+    
+    if is_english_to_russian:
+        hints.extend([
+            f"Первая буква: <b>{word['translation'][0].upper()}</b>",
+            f"Количество букв: {len(word['translation'])}"
+        ])
+    else:
+        hints.extend([
+            f"Транскрипция: <b>{word.get('transcription', '')}</b>",
+            f"Начинается на: <b>{word['word'][0].upper()}</b>"
+        ])
+    
+    if word.get('examples'):
+        example = random.choice(word['examples'])
+        hints.append(f"Пример: {example['english']} - {example['translation']}")
+    
+    if word.get('synonyms'):
+        hints.append(f"Синоним: {random.choice(word['synonyms'])}")
+    
+    return random.choice(hints)
 
 
 async def finish_lesson(message: Message, state: FSMContext):
+    """Завершение урока с статистикой"""
     data = await state.get_data()
+    total_words = len(data["words"])
+    correct_answers = sum(w['total_count'] for w in data["repetition"])
+    errors = data["errors"]
+    reward = total_words * 10 + correct_answers * 2
     
     await message.answer(
-        f"🎉 <b>Урок завершен!</b>\n\n"
-        f"🔹 Изучено слов: {len(data['words'])}\n"
-        f"💰 Получено монет: {len(data['words']) * 10}\n\n"
-        f"Повторите эти слова через /repeat\n"
-        f"Новый урок будет доступен завтра!"
+        f"🏁 <b>Урок завершен!</b>\n\n"
+        f"📊 Результаты:\n"
+        f"• Изучено слов: {total_words}\n"
+        f"• Правильных ответов: {correct_answers}\n"
+        f"• Неправильных ответов: {errors}\n"
+        f"💰 Награда: {reward} монет\n\n"
+        f"<i>Следующий урок будет доступен завтра</i>",
+        parse_mode="HTML"
     )
     await state.clear()
-
-
-# # Обработчик ответов пользователя
-# @router.message(LessonStates.TRANSLATION_PRACTICE)
-# async def check_translation(message: Message, state: FSMContext):
-#     data = await state.get_data()
-#     word_id = data["words"][data["current_word_index"]]
-#     word = get_word_details(word_id)
-#     user_answer = message.text.strip().lower()
-    
-#     if user_answer == word['translation'].lower():
-#         # Правильный ответ
-#         await message.answer("✅ Верно! Отличная работа!")
-        
-#         # Обновляем прогресс
-#         update_word_progress(word_id, is_correct=True)
-        
-#         # Переходим к следующему слову
-#         await state.update_data(current_word_index=data["current_word_index"] + 1)
-#         data = await state.get_data()
-        
-#         if data["current_word_index"] >= len(data["words"]):
-#             # Урок завершен
-#             await finish_lesson(message, state)
-#         else:
-#             await introduce_next_word(message, state)
-#     else:
-#         # Неправильный ответ
-#         attempts = update_word_progress(word_id, is_correct=False)
-        
-#         if attempts == 1:
-#             # Первая подсказка
-#             hint = random.choice([
-#                 f"Первая буква: <b>{word['translation'][0].upper()}</b>",
-#                 f"Количество букв: {len(word['translation'])}"
-#             ])
-#             await message.answer(f"❌ Почти! Подсказка: {hint}")
-#         elif attempts >= 2:
-#             # Вторая подсказка
-#             hint = random.choice([
-#                 f"Пример: {random.choice(word['examples'])}",
-#                 f"Синоним: {random.choice(word.get('synonyms', ['нет синонимов']))}"
-#             ])
-#             await message.answer(f"💡 Еще подсказка: {hint}")
-
-# # Завершение урока
